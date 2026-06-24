@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QR Code Generator – Ayush Suman</title>
+  <meta name="description" content="Generate QR codes instantly for any text, URL, phone number, or email. A modern tool by Ayush Suman." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+
+  <style>
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --accent-1: #7c3aed;
+      --accent-2: #06b6d4;
+      --accent-3: #f472b6;
+      --glass-bg: rgba(255, 255, 255, 0.05);
+      --glass-border: rgba(255, 255, 255, 0.12);
+      --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      --text-primary: #f1f5f9;
+      --text-muted: #94a3b8;
+      --input-bg: rgba(255, 255, 255, 0.07);
+      --radius: 20px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: #060818;
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* ── Animated Background ── */
+    .bg-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.35;
+      animation: drift 18s ease-in-out infinite alternate;
+    }
+
+    .orb-1 {
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, #7c3aed, transparent 70%);
+      top: -200px; left: -200px;
+      animation-duration: 20s;
+    }
+
+    .orb-2 {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, #06b6d4, transparent 70%);
+      bottom: -150px; right: -150px;
+      animation-duration: 24s;
+      animation-delay: -8s;
+    }
+
+    .orb-3 {
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, #f472b6, transparent 70%);
+      top: 40%; left: 50%;
+      animation-duration: 28s;
+      animation-delay: -4s;
+    }
+
+    @keyframes drift {
+      0%   { transform: translate(0, 0) scale(1); }
+      50%  { transform: translate(60px, 40px) scale(1.08); }
+      100% { transform: translate(-40px, 60px) scale(0.95); }
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px);
+      background-size: 50px 50px;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ── Layout ── */
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 40px 16px 60px;
+    }
+
+    /* ── Header ── */
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(124, 58, 237, 0.18);
+      border: 1px solid rgba(124, 58, 237, 0.4);
+      color: #a78bfa;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 6px 16px;
+      border-radius: 50px;
+      margin-bottom: 22px;
+    }
+
+    .badge svg { width: 14px; height: 14px; }
+
+    .header h1 {
+      font-size: clamp(2rem, 5vw, 3.4rem);
+      font-weight: 800;
+      line-height: 1.15;
+      background: linear-gradient(135deg, #f1f5f9 30%, #a78bfa 60%, #67e8f9 90%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 14px;
+    }
+
+    .header p {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      max-width: 440px;
+      margin: 0 auto;
+      line-height: 1.7;
+    }
+
+    /* ── Card ── */
+    .card {
+      width: 100%;
+      max-width: 820px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      box-shadow: var(--glass-shadow), inset 0 0 0 1px rgba(255,255,255,0.03);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      padding: 40px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      align-items: start;
+    }
+
+    /* ── Left Panel ── */
+    .panel-left { display: flex; flex-direction: column; gap: 24px; }
+
+    .field-group { display: flex; flex-direction: column; gap: 10px; }
+
+    label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    textarea, select {
+      font-family: 'Outfit', sans-serif;
+      background: var(--input-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      color: var(--text-primary);
+      font-size: 1rem;
+      transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
+      outline: none;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      padding: 16px 18px;
+      resize: vertical;
+      line-height: 1.6;
+    }
+
+    textarea::placeholder { color: rgba(148, 163, 184, 0.45); }
+
+    textarea:focus {
+      border-color: var(--accent-1);
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+      background: rgba(255,255,255,0.09);
+    }
+
+    /* Color Row */
+    .color-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .color-field { display: flex; flex-direction: column; gap: 8px; }
+
+    .color-picker-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--input-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 10px 14px;
+      transition: border-color 0.25s;
+    }
+
+    .color-picker-wrap:focus-within { border-color: var(--accent-1); }
+
+    input[type="color"] {
+      width: 30px;
+      height: 30px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      cursor: pointer;
+      padding: 0;
+      -webkit-appearance: none;
+    }
+
+    input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+    input[type="color"]::-webkit-color-swatch { border: none; border-radius: 6px; }
+
+    .color-hex {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      letter-spacing: 0.04em;
+    }
+
+    /* Size Slider */
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    input[type="range"] {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 5px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(124,58,237,0.5);
+      transition: transform 0.15s;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+    .size-val {
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: #a78bfa;
+      min-width: 44px;
+      text-align: right;
+    }
+
+    /* Select */
+    select {
+      width: 100%;
+      padding: 13px 16px;
+      cursor: pointer;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2394a3b8' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 16px center;
+    }
+
+    select:focus {
+      border-color: var(--accent-1);
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+    }
+
+    select option { background: #1e1b3a; color: var(--text-primary); }
+
+    /* ── Generate Button ── */
+    .btn-generate {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 14px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      cursor: pointer;
+      background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+      color: #fff;
+      letter-spacing: 0.03em;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 24px rgba(124, 58, 237, 0.45);
+    }
+
+    .btn-generate::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+
+    .btn-generate:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(124, 58, 237, 0.65);
+    }
+
+    .btn-generate:hover::before { opacity: 1; }
+    .btn-generate:active { transform: translateY(0); }
+
+    /* ── Right Panel ── */
+    .panel-right {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+
+    /* QR Frame */
+    .qr-frame {
+      position: relative;
+      width: 100%;
+      max-width: 280px;
+      aspect-ratio: 1;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      transition: box-shadow 0.3s;
+    }
+
+    .qr-frame::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: 21px;
+      background: linear-gradient(135deg, rgba(124,58,237,0.3), rgba(6,182,212,0.3), rgba(244,114,182,0.2));
+      z-index: -1;
+    }
+
+    .qr-frame.active { box-shadow: 0 0 40px rgba(124, 58, 237, 0.3); }
+
+    .qr-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      color: rgba(148, 163, 184, 0.4);
+    }
+
+    .qr-placeholder svg { width: 64px; height: 64px; }
+
+    .qr-placeholder p {
+      font-size: 0.9rem;
+      text-align: center;
+      max-width: 140px;
+      line-height: 1.5;
+    }
+
+    #qr-output {
+      display: none;
+      animation: popIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    #qr-output canvas {
+      display: block;
+      border-radius: 14px;
+      max-width: 100%;
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.7); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+
+    /* Download Button */
+    .btn-download {
+      width: 100%;
+      max-width: 280px;
+      padding: 14px;
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.97rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: rgba(255,255,255,0.06);
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: background 0.2s, border-color 0.2s, transform 0.2s;
+      backdrop-filter: blur(8px);
+    }
+
+    .btn-download:hover:not(:disabled) {
+      background: rgba(6, 182, 212, 0.15);
+      border-color: var(--accent-2);
+      transform: translateY(-1px);
+    }
+
+    .btn-download:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-download svg { width: 18px; height: 18px; }
+
+    /* ── Footer Card ── */
+    .footer-card {
+      width: 100%;
+      max-width: 820px;
+      margin-top: 24px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      padding: 28px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .author-info {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-1), var(--accent-2), var(--accent-3));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: #fff;
+      flex-shrink: 0;
+      box-shadow: 0 4px 16px rgba(124,58,237,0.5);
+    }
+
+    .author-name {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .author-email {
+      font-size: 0.86rem;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    .author-email a {
+      color: #67e8f9;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .author-email a:hover { color: #a78bfa; }
+
+    /* ── Hero Button ── */
+    .btn-hero {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 13px 24px;
+      border-radius: 50px;
+      text-decoration: none;
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.92rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      color: #fff;
+      background: linear-gradient(135deg, #7c3aed, #f472b6, #06b6d4);
+      background-size: 200% 200%;
+      animation: gradientShift 4s ease infinite;
+      box-shadow: 0 4px 20px rgba(244, 114, 182, 0.4);
+      transition: transform 0.2s, box-shadow 0.2s;
+      white-space: nowrap;
+    }
+
+    @keyframes gradientShift {
+      0%   { background-position: 0% 50%; }
+      50%  { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .btn-hero:hover {
+      transform: translateY(-2px) scale(1.03);
+      box-shadow: 0 8px 32px rgba(244, 114, 182, 0.55);
+    }
+
+    .btn-hero svg { width: 16px; height: 16px; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: rgba(6, 182, 212, 0.15);
+      border: 1px solid rgba(6, 182, 212, 0.4);
+      color: #67e8f9;
+      padding: 12px 24px;
+      border-radius: 50px;
+      font-size: 0.92rem;
+      font-weight: 600;
+      backdrop-filter: blur(16px);
+      z-index: 1000;
+      transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.35s;
+      opacity: 0;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 680px) {
+      .card {
+        grid-template-columns: 1fr;
+        gap: 30px;
+        padding: 28px 22px;
+      }
+
+      .panel-right { order: -1; }
+
+      .footer-card {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 22px 22px;
+      }
+
+      .btn-hero { width: 100%; justify-content: center; }
+      .header h1 { font-size: 1.9rem; }
+    }
+
+    @media (max-width: 400px) {
+      .color-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Ambient Background -->
+  <div class="bg-canvas" aria-hidden="true">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <div class="wrapper">
+
+    <!-- ── Header ── -->
+    <header class="header">
+      <div class="badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/>
+          <rect x="19" y="14" width="2" height="2"/><rect x="14" y="19" width="2" height="2"/>
+          <rect x="19" y="19" width="2" height="2"/><rect x="17" y="16" width="2" height="3"/>
+        </svg>
+        QR Code Generator
+      </div>
+      <h1>Generate QR Codes<br/>Instantly</h1>
+      <p>Transform any text, URL, phone number or email into a beautiful, scannable QR code in seconds.</p>
+    </header>
+
+    <!-- ── Main Card ── -->
+    <main class="card" id="main-card">
+
+      <!-- Left: Controls -->
+      <div class="panel-left">
+
+        <div class="field-group">
+          <label for="qr-input">Enter text, URL, phone or email</label>
+          <textarea
+            id="qr-input"
+            placeholder="https://example.com&#10;+91 98765 43210&#10;hello@example.com&#10;Any text…"
+            autocomplete="off"
+            spellcheck="false"
+          ></textarea>
+        </div>
+
+        <div class="field-group">
+          <label>QR Colours</label>
+          <div class="color-row">
+            <div class="color-field">
+              <label for="fg-color" style="font-size:0.75rem;text-transform:none;letter-spacing:0;">Foreground</label>
+              <div class="color-picker-wrap">
+                <input type="color" id="fg-color" value="#ffffff" title="Foreground colour" />
+                <span class="color-hex" id="fg-hex">#ffffff</span>
+              </div>
+            </div>
+            <div class="color-field">
+              <label for="bg-color" style="font-size:0.75rem;text-transform:none;letter-spacing:0;">Background</label>
+              <div class="color-picker-wrap">
+                <input type="color" id="bg-color" value="#0f0a2e" title="Background colour" />
+                <span class="color-hex" id="bg-hex">#0f0a2e</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label for="qr-size">Size: <span id="size-label">256</span>px</label>
+          <div class="slider-row">
+            <input type="range" id="qr-size" min="128" max="512" step="8" value="256" />
+            <span class="size-val" id="size-display">256px</span>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label for="error-level">Error Correction Level</label>
+          <select id="error-level">
+            <option value="L">Low (L) – 7% recovery</option>
+            <option value="M" selected>Medium (M) – 15% recovery</option>
+            <option value="Q">Quartile (Q) – 25% recovery</option>
+            <option value="H">High (H) – 30% recovery</option>
+          </select>
+        </div>
+
+        <button class="btn-generate" id="btn-generate" type="button">
+          ✦ Generate QR Code
+        </button>
+
+      </div>
+
+      <!-- Right: QR Output -->
+      <div class="panel-right">
+        <div class="qr-frame" id="qr-frame">
+          <div class="qr-placeholder" id="qr-placeholder">
+            <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="6" y="6" width="20" height="20" rx="2"/>
+              <rect x="11" y="11" width="10" height="10" rx="1"/>
+              <rect x="38" y="6" width="20" height="20" rx="2"/>
+              <rect x="43" y="11" width="10" height="10" rx="1"/>
+              <rect x="6" y="38" width="20" height="20" rx="2"/>
+              <rect x="11" y="43" width="10" height="10" rx="1"/>
+              <rect x="38" y="38" width="8" height="8" rx="1"/>
+              <rect x="50" y="38" width="8" height="8" rx="1"/>
+              <rect x="38" y="50" width="8" height="8" rx="1"/>
+              <rect x="50" y="50" width="8" height="8" rx="1"/>
+            </svg>
+            <p>Your QR code will appear here</p>
+          </div>
+          <div id="qr-output"></div>
+        </div>
+
+        <button class="btn-download" id="btn-download" type="button" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3v13M8 13l4 4 4-4"/><path d="M3 18v1a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-1"/>
+          </svg>
+          Download PNG
+        </button>
+      </div>
+
+    </main>
+
+    <!-- ── Footer / Author Card ── -->
+    <footer class="footer-card">
+      <div class="author-info">
+        <div class="avatar" aria-hidden="true">AS</div>
+        <div>
+          <div class="author-name">Ayush Suman</div>
+          <div class="author-email">
+            <a href="mailto:aayushsuman18@gmail.com" id="author-email-link">aayushsuman18@gmail.com</a>
+          </div>
+        </div>
+      </div>
+
+      <a
+        href="https://digitalheroesco.com"
+        id="btn-digital-heroes"
+        class="btn-hero"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+        </svg>
+        Built for Digital Heroes
+      </a>
+    </footer>
+
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      const inputEl     = document.getElementById('qr-input');
+      const fgColorEl   = document.getElementById('fg-color');
+      const bgColorEl   = document.getElementById('bg-color');
+      const fgHexEl     = document.getElementById('fg-hex');
+      const bgHexEl     = document.getElementById('bg-hex');
+      const sizeEl      = document.getElementById('qr-size');
+      const sizeLabelEl = document.getElementById('size-label');
+      const sizeDispEl  = document.getElementById('size-display');
+      const errLvlEl    = document.getElementById('error-level');
+      const generateBtn = document.getElementById('btn-generate');
+      const downloadBtn = document.getElementById('btn-download');
+      const qrFrame     = document.getElementById('qr-frame');
+      const qrOutput    = document.getElementById('qr-output');
+      const placeholder = document.getElementById('qr-placeholder');
+      const toastEl     = document.getElementById('toast');
+
+      let currentCanvas = null;
+      let toastTimer    = null;
+
+      /* ── Toast ── */
+      function showToast(msg, duration) {
+        duration = duration || 2400;
+        toastEl.textContent = msg;
+        toastEl.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, duration);
+      }
+
+      /* ── Colour hex sync ── */
+      fgColorEl.addEventListener('input', function () { fgHexEl.textContent = fgColorEl.value; });
+      bgColorEl.addEventListener('input', function () { bgHexEl.textContent = bgColorEl.value; });
+
+      /* ── Size slider sync ── */
+      sizeEl.addEventListener('input', function () {
+        var v = sizeEl.value;
+        sizeLabelEl.textContent = v;
+        sizeDispEl.textContent  = v + 'px';
+      });
+
+      /* ── Generate ── */
+      function generateQR() {
+        var text = inputEl.value.trim();
+
+        if (!text) {
+          showToast('Please enter some text first!');
+          inputEl.focus();
+          return;
+        }
+
+        var size   = parseInt(sizeEl.value, 10);
+        var errLvl = errLvlEl.value;
+        var fg     = fgColorEl.value;
+        var bg     = bgColorEl.value;
+
+        qrOutput.innerHTML    = '';
+        qrOutput.style.display = 'none';
+        placeholder.style.display = 'flex';
+        currentCanvas = null;
+        downloadBtn.disabled = true;
+
+        var canvas = document.createElement('canvas');
+
+        QRCode.toCanvas(canvas, text, {
+          width: Math.min(size, 512),
+          margin: 2,
+          errorCorrectionLevel: errLvl,
+          color: { dark: fg, light: bg }
+        }, function (err) {
+          if (err) {
+            showToast('Error generating QR code. Try shorter text.');
+            return;
+          }
+
+          placeholder.style.display = 'none';
+          qrOutput.appendChild(canvas);
+          qrOutput.style.display    = 'block';
+          qrFrame.classList.add('active');
+
+          currentCanvas        = canvas;
+          downloadBtn.disabled = false;
+
+          showToast('QR code generated!');
+        });
+      }
+
+      generateBtn.addEventListener('click', generateQR);
+
+      inputEl.addEventListener('keydown', function (e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') generateQR();
+      });
+
+      [fgColorEl, bgColorEl, errLvlEl].forEach(function (el) {
+        el.addEventListener('change', function () { if (currentCanvas) generateQR(); });
+      });
+
+      sizeEl.addEventListener('change', function () { if (currentCanvas) generateQR(); });
+
+      /* ── Download ── */
+      downloadBtn.addEventListener('click', function () {
+        if (!currentCanvas) return;
+        var link = document.createElement('a');
+        link.download = 'qrcode-ayushsuman.png';
+        link.href     = currentCanvas.toDataURL('image/png');
+        link.click();
+        showToast('Downloading PNG...');
+      });
+
+    }());
+  </script>
+</body>
+</html>
